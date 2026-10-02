@@ -4,64 +4,112 @@ Utilitário de linha de comando e interface de terminal (TUI) para monitoramento
 
 ## Visão Geral
 
-O **portguard** permite inspecionar portas TCP e UDP ativas no sistema, exibindo o identificador de processo (PID), nome do executável, consumo de memória de trabalho e tags de serviços de desenvolvimento, permitindo também o encerramento seguro de processos conflitantes.
+O **portguard** permite inspecionar portas TCP e UDP ativas no sistema operacional, exibindo o identificador de processo (PID), nome do executável, consumo de memória de trabalho (RAM) e tags automáticas de serviços de desenvolvimento (PostgreSQL, MySQL, Node.js, Vite, Redis, Docker, etc.), permitindo também o encerramento seguro e rápido de processos conflitantes.
 
-## Instalação e Execução
+---
+
+## Como Usar
+
+Você pode utilizar o PortGuard baixando o executável standalone pré-compilado (sem necessidade de ter o Rust instalado) ou compilando diretamente a partir do código-fonte.
+
+### Opção 1: Usando o Executável Pré-compilado (.exe)
+
+Não requer instalação de Rust, Node.js ou qualquer outro runtime.
+
+1. Baixe o arquivo `portguard.exe` na aba [Releases](https://github.com/Gabriel-Cerqueira/portguard/releases).
+2. Abra um terminal (PowerShell, Prompt de Comando ou Windows Terminal) na pasta onde o arquivo foi baixado.
+3. Execute diretamente:
+
+```powershell
+# Abrir o Dashboard Interativo (TUI)
+.\portguard.exe
+
+# Ou utilizar os comandos diretos de linha de comando (CLI):
+.\portguard.exe list
+.\portguard.exe 3000
+.\portguard.exe kill 3000
+```
+
+#### Adicionando ao PATH do Windows (Opcional - Uso Global)
+Para executar digitando apenas `portguard` a partir de qualquer pasta ou terminal do seu sistema:
+1. Mova o `portguard.exe` para uma pasta de sua preferência (ex.: `C:\Ferramentas\`).
+2. Adicione o caminho dessa pasta à variável de ambiente `Path` do Windows.
+3. Abra um novo terminal e use diretamente o comando `portguard`.
+
+---
+
+### Opção 2: Compilando a partir do Código-Fonte (com Rust)
 
 Requisitos:
-- Rust (edição 2024 / estável recente)
-- Windows 10/11
-
-### Modo Interativo (TUI)
+- Rust (versão 1.85+ / edição 2024)
+- Windows 10 ou 11
 
 ```bash
+# Executar a interface interativa em modo de desenvolvimento
 cargo run
+
+# Compilar o binário otimizado de produção
+cargo build --release
+# O executável será gerado em: target\release\portguard.exe
 ```
 
-Atalhos de teclado:
-- `Up` / `Down` ou `j` / `k`: Navegar entre os registros da tabela.
-- `Shift + K` ou `x`: Solicitar encerramento do processo selecionado.
-- `/`: Filtrar por número de porta, PID, processo ou tag.
-- `Tab`: Alternar entre exibir apenas portas em escuta (Listening) e todas as conexões.
-- `r`: Atualizar dados imediatamente.
-- `?`: Abrir modal de ajuda.
-- `q` ou `Esc`: Sair da aplicação.
+---
 
-### Modo Linha de Comando (CLI)
+## Comandos de Linha de Comando (CLI)
 
 ```bash
-# Listar portas em escuta
-cargo run -- list
+# Listar portas ativas em modo de escuta (Listening)
+portguard list
 
-# Listar todas as conexões ativas
-cargo run -- list --all
+# Listar todas as conexões de rede (incluindo ESTABLISHED e TIME_WAIT)
+portguard list --all
 
-# Inspecionar uma porta específica
-cargo run -- 3000
-cargo run -- inspect 5432
+# Inspecionar detalhes de uma porta específica
+portguard 3000
+portguard inspect 5432
 
-# Encerrar o processo associado a uma porta
-cargo run -- kill 3000
+# Encerrar o processo associado a uma porta (com confirmação interativa)
+portguard kill 3000
 
-# Encerrar sem confirmação interativa
-cargo run -- kill 3000 --force
+# Encerrar sem solicitar confirmação
+portguard kill 3000 --force
 ```
 
-## Estrutura do Código
+---
+
+## Atalhos do Dashboard Interativo (TUI)
+
+| Tecla | Ação |
+| :--- | :--- |
+| `Up` / `Down` ou `j` / `k` | Navegar pelas portas da tabela (com rolagem automática de tela) |
+| `Shift + K` ou `x` | Abrir modal de confirmação para encerrar o processo selecionado |
+| `/` | Ativar o filtro de busca por porta, PID, processo ou tag |
+| `Tab` | Alternar entre exibir apenas portas em escuta (`LISTENING`) e todas as conexões |
+| `r` | Atualizar os dados do sistema imediatamente |
+| `?` ou `h` | Abrir o modal de ajuda com os atalhos |
+| `q` ou `Esc` | Sair da aplicação |
+
+---
+
+## Estrutura do Projeto
 
 - `src/model.rs`: Tipos fundamentais de domínio (`PortEntry`, `ProcessInfo`, `Protocol`, `PortState`).
-- `src/scanner.rs`: Mapeamento de portas locais via Windows IP Helper API.
-- `src/process.rs`: Coleta de consumo de recursos e rotina de finalização de processos.
-- `src/cli.rs`: Parser de argumentos e execução de subcomandos via `clap`.
-- `src/ui.rs`: Layout e renderização gráfica de terminal via `ratatui`.
-- `src/app.rs`: Máquina de estado da interface e tratamento de eventos de entrada.
-- `src/main.rs`: Inicialização do runtime e loop principal de renderização.
+- `src/scanner.rs`: Mapeamento nativo de portas locais via Windows IP Helper API (`GetExtendedTcpTable` e `GetExtendedUdpTable`).
+- `src/process.rs`: Inspeção de processos com `sysinfo` e encerramento via `TerminateProcess`.
+- `src/cli.rs`: Parser de argumentos e execução de comandos de terminal com `clap`.
+- `src/ui.rs`: Layout, tabela navegável (`TableState`) e modais com `ratatui`.
+- `src/app.rs`: Gerenciamento de estado, filtros e eventos de teclado.
+- `src/main.rs`: Inicialização do runtime e loop principal de renderização com `crossterm`.
 
-## Testes
+---
+
+## Testes Automatizados
 
 ```bash
 cargo test
 ```
+
+---
 
 ## Licença
 
