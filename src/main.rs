@@ -1,5 +1,6 @@
 pub mod model;
+pub mod scanner;
 
 fn main() {
-    println!("PortGuard - Guardião de portas de desenvolvimento");
+    println!("PortGuard - Scanner Test");
 }
