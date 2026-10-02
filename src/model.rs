@@ -74,16 +74,18 @@ impl ProcessInfo {
         const GB: u64 = MB * 1024;
 
         if self.memory_bytes >= GB {
-            format!("{:.2} GB", self.memory_bytes as f64 / GB as f64)
-        } else if self.memory_bytes >= MB {
-            format!("{:.1} MB", self.memory_bytes as f64 / MB as f64)
-        } else if self.memory_bytes >= KB {
-            format!("{} KB", self.memory_bytes / KB)
-        } else if self.memory_bytes > 0 {
-            format!("{} B", self.memory_bytes)
-        } else {
-            "0 B".to_string()
+            return format!("{:.2} GB", self.memory_bytes as f64 / GB as f64);
         }
+        if self.memory_bytes >= MB {
+            return format!("{:.1} MB", self.memory_bytes as f64 / MB as f64);
+        }
+        if self.memory_bytes >= KB {
+            return format!("{} KB", self.memory_bytes / KB);
+        }
+        if self.memory_bytes > 0 {
+            return format!("{} B", self.memory_bytes);
+        }
+        "0 B".to_string()
     }
 }
 
