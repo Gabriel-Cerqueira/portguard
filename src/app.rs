@@ -4,6 +4,7 @@ use crate::model::PortEntry;
 use crate::process::ProcessManager;
 use crate::scanner::{scan_all_ports, scan_listening_ports};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::widgets::TableState;
 use std::time::{Duration, Instant};
 
 /// Interactive TUI operational modes.
@@ -20,6 +21,7 @@ pub struct App {
     pub raw_ports: Vec<PortEntry>,
     pub filtered_ports: Vec<PortEntry>,
     pub selected_index: usize,
+    pub table_state: TableState,
     pub filter_input: String,
     pub mode: AppMode,
     pub show_all_connections: bool,
@@ -36,10 +38,16 @@ impl App {
 
         let filtered_ports = raw_ports.clone();
 
+        let mut table_state = TableState::default();
+        if !filtered_ports.is_empty() {
+            table_state.select(Some(0));
+        }
+
         Self {
             raw_ports,
             filtered_ports,
             selected_index: 0,
+            table_state,
             filter_input: String::new(),
             mode: AppMode::Normal,
             show_all_connections: false,
@@ -92,8 +100,12 @@ impl App {
 
         if self.filtered_ports.is_empty() {
             self.selected_index = 0;
-        } else if self.selected_index >= self.filtered_ports.len() {
-            self.selected_index = self.filtered_ports.len() - 1;
+            self.table_state.select(None);
+        } else {
+            if self.selected_index >= self.filtered_ports.len() {
+                self.selected_index = self.filtered_ports.len() - 1;
+            }
+            self.table_state.select(Some(self.selected_index));
         }
     }
 
@@ -104,6 +116,7 @@ impl App {
             } else {
                 self.selected_index = 0;
             }
+            self.table_state.select(Some(self.selected_index));
         }
     }
 
@@ -114,6 +127,7 @@ impl App {
             } else {
                 self.selected_index = self.filtered_ports.len() - 1;
             }
+            self.table_state.select(Some(self.selected_index));
         }
     }
 

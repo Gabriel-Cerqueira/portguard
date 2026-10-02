@@ -135,7 +135,7 @@ fn render_body(frame: &mut Frame, app: &mut App, area: Rect) {
     render_process_details(frame, app, body_chunks[1]);
 }
 
-fn render_ports_table(frame: &mut Frame, app: &App, area: Rect) {
+fn render_ports_table(frame: &mut Frame, app: &mut App, area: Rect) {
     let header_cells = ["PORT", "PROTO", "PID", "PROCESS", "RAM", "TAG", "STATE"]
         .iter()
         .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
@@ -146,8 +146,6 @@ fn render_ports_table(frame: &mut Frame, app: &App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let is_selected = i == app.selected_index;
-
             let (proc_name, ram) = match &p.process {
                 Some(proc) => (proc.name.as_str(), proc.formatted_memory()),
                 None => ("-", "-".to_string()),
@@ -165,12 +163,7 @@ fn render_ports_table(frame: &mut Frame, app: &App, area: Rect) {
                 Cell::from(p.state.to_string()),
             ];
 
-            let row_style = if is_selected {
-                Style::default()
-                    .bg(Color::Rgb(30, 60, 110))
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD)
-            } else if i % 2 == 0 {
+            let row_style = if i % 2 == 0 {
                 Style::default().fg(Color::White)
             } else {
                 Style::default().fg(Color::Rgb(200, 200, 200))
@@ -192,6 +185,12 @@ fn render_ports_table(frame: &mut Frame, app: &App, area: Rect) {
 
     let table = Table::new(rows, widths)
         .header(header)
+        .row_highlight_style(
+            Style::default()
+                .bg(Color::Rgb(30, 60, 110))
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(
             Block::default()
                 .title(" Active Ports ")
@@ -200,7 +199,7 @@ fn render_ports_table(frame: &mut Frame, app: &App, area: Rect) {
                 .border_style(Style::default().fg(Color::Cyan)),
         );
 
-    frame.render_widget(table, area);
+    frame.render_stateful_widget(table, area, &mut app.table_state);
 }
 
 fn render_process_details(frame: &mut Frame, app: &App, area: Rect) {
