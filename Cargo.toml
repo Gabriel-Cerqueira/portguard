@@ -1,0 +1,26 @@
+[package]
+name = "portguard"
+version = "0.1.0"
+edition = "2024"
+authors = ["Gabriel Cerqueira <gabriel@example.com>"]
+description = "Guardião nativo de portas e processos de desenvolvimento no Windows"
+
+[dependencies]
+# Interface de terminal rica e interativa (TUI)
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Parser de argumentos de linha de comando (CLI)
+clap = { version = "4.5", features = ["derive"] }
+
+# Coleta de informações de processos do sistema operacional (RAM, nome, status)
+sysinfo = "0.33"
+
+# Chamadas nativas da API do Windows (IP Helper API e WinSock)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_System_Threading",
+] }
