@@ -1,14 +1,8 @@
-//! Módulo de Modelo de Domínio (`src/model.rs`)
-//!
-//! Contém as estruturas de dados e enums que representam o estado
-//! das portas de rede e dos processos associados no sistema.
-//!
-//! Este módulo é puramente focado em dados e lógica de apresentação,
-//! sem depender diretamente de APIs nativas do Windows.
+//! Domain model and data structures for network ports and OS processes.
 
 use std::fmt;
 
-/// Protocolo de transporte da porta de rede.
+/// Transport layer protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Protocol {
     Tcp,
@@ -24,18 +18,13 @@ impl fmt::Display for Protocol {
     }
 }
 
-/// Estado da conexão da porta de rede.
+/// TCP connection state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PortState {
-    /// Porta aberta e escutando por conexões de entrada (servidores/dev servers).
     Listening,
-    /// Conexão TCP ativa e estabelecida.
     Established,
-    /// Aguardando tempo suficiente para garantir que o pacote remoto foi recebido.
     TimeWait,
-    /// Conexão encerrando do lado local.
     CloseWait,
-    /// Outros estados TCP (SynSent, SynReceived, FinWait, etc.).
     Other(String),
 }
 
@@ -51,23 +40,18 @@ impl fmt::Display for PortState {
     }
 }
 
-/// Informações do processo dono da porta no sistema operacional.
+/// Process metadata retrieved from the operating system.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcessInfo {
-    /// Identificador numérico do processo (PID).
     pub pid: u32,
-    /// Nome do executável (ex.: `node.exe`, `cargo.exe`, `postgres.exe`).
     pub name: String,
-    /// Caminho completo do binário no disco, se acessível.
     pub exe_path: Option<String>,
-    /// Consumo de memória de trabalho (Working Set) em bytes.
     pub memory_bytes: u64,
-    /// Argumentos da linha de comando com os quais o processo foi iniciado.
     pub cmd_args: Vec<String>,
 }
 
 impl ProcessInfo {
-    /// Retorna a memória formatada de maneira amigável para humanos (ex.: "142.5 MB", "1.2 GB").
+    /// Formats memory bytes into a human-readable string (e.g. "142.5 MB").
     pub fn formatted_memory(&self) -> String {
         const KB: u64 = 1024;
         const MB: u64 = KB * 1024;
@@ -89,28 +73,19 @@ impl ProcessInfo {
     }
 }
 
-/// Representação completa de uma porta em uso no sistema.
+/// Active port entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PortEntry {
-    /// Número da porta local (ex.: 3000, 5432, 8080).
     pub port: u16,
-    /// Protocolo (TCP ou UDP).
     pub protocol: Protocol,
-    /// Estado da porta.
     pub state: PortState,
-    /// Endereço IP local vinculado (ex.: `0.0.0.0`, `127.0.0.1`, `::`).
     pub local_ip: String,
-    /// PID que está escutando na porta.
     pub pid: u32,
-    /// Detalhes enriquecidos do processo (se encontrado no sistema).
     pub process: Option<ProcessInfo>,
-    /// Tag contextual para ferramentas conhecidas de desenvolvimento (ex.: "PostgreSQL", "React/Node").
     pub dev_tag: Option<&'static str>,
 }
 
 impl PortEntry {
-    /// Cria uma nova entrada de porta, inferindo automaticamente tags de desenvolvimento
-    /// comuns a partir da porta ou do nome do processo.
     pub fn new(
         port: u16,
         protocol: Protocol,
@@ -133,11 +108,9 @@ impl PortEntry {
     }
 }
 
-/// Infere uma tag amigável de desenvolvimento a partir da porta ou nome do executável.
 fn infer_dev_tag(port: u16, process_name: Option<&str>) -> Option<&'static str> {
     let name_lower = process_name.map(|n| n.to_lowercase()).unwrap_or_default();
 
-    // 1. Inferência por nome do processo
     if name_lower.contains("node") || name_lower.contains("bun") || name_lower.contains("deno") {
         return Some("Node/JS");
     }
@@ -166,7 +139,6 @@ fn infer_dev_tag(port: u16, process_name: Option<&str>) -> Option<&'static str> 
         return Some("Go/API");
     }
 
-    // 2. Inferência por portas padrão bem conhecidas
     match port {
         3000 => Some("Web/React/Next"),
         5173 => Some("Vite/Frontend"),
@@ -194,7 +166,7 @@ mod tests {
             pid: 1234,
             name: "test.exe".to_string(),
             exe_path: None,
-            memory_bytes: 142 * 1024 * 1024 + 512 * 1024, // ~142.5 MB
+            memory_bytes: 142 * 1024 * 1024 + 512 * 1024,
             cmd_args: vec![],
         };
         assert_eq!(proc.formatted_memory(), "142.5 MB");
@@ -203,7 +175,7 @@ mod tests {
             pid: 5678,
             name: "tiny.exe".to_string(),
             exe_path: None,
-            memory_bytes: 512 * 1024, // 512 KB
+            memory_bytes: 512 * 1024,
             cmd_args: vec![],
         };
         assert_eq!(small_proc.formatted_memory(), "512 KB");

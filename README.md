@@ -1,78 +1,68 @@
-# 🛡️ PortGuard
+# portguard
 
-> **Guardião nativo de portas e processos de desenvolvimento no Windows construído em Rust.**
+Utilitário de linha de comando e interface de terminal (TUI) para monitoramento e gerenciamento de portas de rede no Windows.
 
-O **PortGuard** é uma ferramenta de alta performance para inspecionar, filtrar e liberar portas ocupadas no Windows (como `3000`, `5432`, `8080`, `3306`), identificando instantaneamente o processo, consumo de memória RAM, PID e caminho do executável com suporte a interface interativa (TUI) e comandos rápidos via CLI.
+## Visão Geral
 
----
+O **portguard** permite inspecionar portas TCP e UDP ativas no sistema, exibindo o identificador de processo (PID), nome do executável, consumo de memória de trabalho e tags de serviços de desenvolvimento, permitindo também o encerramento seguro de processos conflitantes.
 
-## 🚀 Como Executar
+## Instalação e Execução
 
-### 1. Modo Dashboard Interativo (TUI)
-Para abrir a interface visual completa no seu terminal:
+Requisitos:
+- Rust (edição 2024 / estável recente)
+- Windows 10/11
+
+### Modo Interativo (TUI)
 
 ```bash
 cargo run
 ```
 
-### 2. Modo Linha de Comando (CLI)
-Para listar ou inspecionar portas diretamente pelo PowerShell / terminal:
+Atalhos de teclado:
+- `Up` / `Down` ou `j` / `k`: Navegar entre os registros da tabela.
+- `Shift + K` ou `x`: Solicitar encerramento do processo selecionado.
+- `/`: Filtrar por número de porta, PID, processo ou tag.
+- `Tab`: Alternar entre exibir apenas portas em escuta (Listening) e todas as conexões.
+- `r`: Atualizar dados imediatamente.
+- `?`: Abrir modal de ajuda.
+- `q` ou `Esc`: Sair da aplicação.
+
+### Modo Linha de Comando (CLI)
 
 ```bash
-# Listar portas em modo LISTENING com processos e consumo de RAM
+# Listar portas em escuta
 cargo run -- list
 
-# Listar todas as conexões ativas (inclusive ESTABLISHED/TIME_WAIT)
+# Listar todas as conexões ativas
 cargo run -- list --all
 
 # Inspecionar uma porta específica
 cargo run -- 3000
-# ou
 cargo run -- inspect 5432
 
-# Encerrar o processo que está ocupando uma porta (com confirmação)
+# Encerrar o processo associado a uma porta
 cargo run -- kill 3000
 
-# Encerrar forçadamente sem pedir confirmação
+# Encerrar sem confirmação interativa
 cargo run -- kill 3000 --force
 ```
 
----
+## Estrutura do Código
 
-## ⌨️ Atalhos de Teclado no Dashboard (TUI)
+- `src/model.rs`: Tipos fundamentais de domínio (`PortEntry`, `ProcessInfo`, `Protocol`, `PortState`).
+- `src/scanner.rs`: Mapeamento de portas locais via Windows IP Helper API.
+- `src/process.rs`: Coleta de consumo de recursos e rotina de finalização de processos.
+- `src/cli.rs`: Parser de argumentos e execução de subcomandos via `clap`.
+- `src/ui.rs`: Layout e renderização gráfica de terminal via `ratatui`.
+- `src/app.rs`: Máquina de estado da interface e tratamento de eventos de entrada.
+- `src/main.rs`: Inicialização do runtime e loop principal de renderização.
 
-| Tecla | Ação |
-| :--- | :--- |
-| **`↑` / `k`** | Move para a porta anterior na tabela |
-| **`↓` / `j`** | Move para a próxima porta na tabela |
-| **`K` (Shift+k) / `x`** | Abre o modal para **encerrar o processo** selecionado |
-| **`/`** | Ativa a **barra de busca/filtro** por número de porta, PID, processo ou tag |
-| **`Tab`** | Alterna entre exibir apenas `LISTENING` (dev) ou `TODAS` as conexões |
-| **`r`** | Atualiza imediatamente a lista de portas e processos |
-| **`?` / `h`** | Exibe o modal de ajuda com os atalhos |
-| **`q` / `Esc`** | Sai da aplicação |
-
----
-
-## 🏗️ Estrutura do Código & Arquitetura
-
-O projeto foi estruturado com foco em clareza, modularidade e boas práticas idiomáticas de Rust para facilitar o estudo:
-
-```
-src/
-├── model.rs      # Estruturas de dados (PortEntry, ProcessInfo, Protocol, PortState) e tags dev
-├── scanner.rs    # Varredura nativa do Windows (IP Helper API: GetExtendedTcpTable / GetExtendedUdpTable)
-├── process.rs    # Enriquecimento com sysinfo (RAM, caminho, argumentos) e Win32 TerminateProcess
-├── cli.rs        # Comandos diretos de terminal usando clap
-├── ui.rs         # Renderização de layout, tabelas e modais com ratatui
-├── app.rs        # Gerenciamento de estado e eventos de teclado
-└── main.rs       # Ponto de entrada e loop de eventos com crossterm
-```
-
----
-
-## 🧪 Rodando os Testes Automatizados
+## Testes
 
 ```bash
 cargo test
 ```
+
+## Licença
+
+MIT

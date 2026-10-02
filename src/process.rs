@@ -1,33 +1,27 @@
-//! Módulo de Gerenciamento de Processos (`src/process.rs`)
-//!
-//! Responsável por inspecionar o sistema operacional para obter metadados ricos
-//! dos processos donos de portas (nome do executável, consumo de RAM, caminho no disco)
-//! e fornecer a funcionalidade segura de encerramento (`kill_process`).
+//! Process introspection and management routines.
 
 use crate::model::{PortEntry, ProcessInfo};
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
-/// Gerenciador de processos do sistema que mantém o estado da árvore de processos.
+/// Manages system process inspection and lifecycle operations.
 pub struct ProcessManager {
     sys: System,
 }
 
 impl ProcessManager {
-    /// Cria uma nova instância do gerenciador e realiza a varredura inicial de processos.
+    /// Creates a new instance and performs the initial process tree scan.
     pub fn new() -> Self {
         let mut sys = System::new();
-        // Atualiza todos os processos do sistema para coletar nomes, memória e caminhos
         sys.refresh_processes(ProcessesToUpdate::All, true);
         Self { sys }
     }
 
-    /// Atualiza a lista de processos em execução no sistema operacional.
-    /// Chamado periodicamente ou antes de cada varredura de portas para obter dados frescos.
+    /// Refreshes the internal snapshot of running processes.
     pub fn refresh(&mut self) {
         self.sys.refresh_processes(ProcessesToUpdate::All, true);
     }
 
-    /// Busca as informações detalhadas de um processo pelo seu PID.
+    /// Retrieves detailed metadata for a given PID.
     pub fn get_process_info(&self, pid: u32) -> Option<ProcessInfo> {
         let sys_pid = Pid::from_u32(pid);
         let proc = self.sys.process(sys_pid)?;
@@ -50,15 +44,13 @@ impl ProcessManager {
         })
     }
 
-    /// Recebe uma lista de portas descobertas e enriquece cada uma com as informações
-    /// do processo correspondente (nome, memória, caminho e tags de dev).
+    /// Enriches a list of port entries with process metadata.
     pub fn enrich_ports(&mut self, ports: &mut [PortEntry]) {
         self.refresh();
 
         for entry in ports.iter_mut() {
             if entry.pid > 0 {
                 if let Some(info) = self.get_process_info(entry.pid) {
-                    // Atualiza a tag com base no novo nome do processo descoberto
                     let dev_tag = crate::model::PortEntry::new(
                         entry.port,
                         entry.protocol,
@@ -76,13 +68,10 @@ impl ProcessManager {
         }
     }
 
-    /// Encerra forçadamente um processo pelo PID.
-    ///
-    /// Retorna `Ok(())` se o sinal de término foi emitido com sucesso,
-    /// ou `Err(String)` caso o processo não exista ou o acesso seja negado.
+    /// Terminates a process by its PID.
     pub fn kill_process(pid: u32) -> Result<(), String> {
         if pid == 0 {
-            return Err("Não é permitido encerrar o System Idle Process (PID 0).".to_string());
+            return Err("Cannot terminate System Idle Process (PID 0).".to_string());
         }
 
         #[cfg(windows)]
@@ -93,23 +82,21 @@ impl ProcessManager {
             };
 
             unsafe {
-                // Abre o processo solicitando permissão para encerrá-lo (PROCESS_TERMINATE)
                 let handle = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
                 if handle.is_null() {
                     let err = GetLastError();
                     return Err(format!(
-                        "Falha ao abrir processo com PID {pid}. Erro Win32: {err} (pode exigir privilégios de Administrador)"
+                        "Failed to open process {pid} (Win32 error {err})"
                     ));
                 }
 
-                // Código de saída 1 indica término forçado por ferramenta externa
                 let success = TerminateProcess(handle, 1);
                 CloseHandle(handle);
 
                 if success == 0 {
                     let err = GetLastError();
                     return Err(format!(
-                        "Falha ao encerrar processo PID {pid}. Erro Win32: {err}"
+                        "Failed to terminate process {pid} (Win32 error {err})"
                     ));
                 }
 
@@ -125,10 +112,10 @@ impl ProcessManager {
                 if proc.kill() {
                     Ok(())
                 } else {
-                    Err(format!("Não foi possível encerrar o processo PID {pid}."))
+                    Err(format!("Could not terminate process {pid}."))
                 }
             } else {
-                Err(format!("Processo PID {pid} não encontrado."))
+                Err(format!("Process {pid} not found."))
             }
         }
     }
@@ -144,9 +131,8 @@ mod tests {
         let current_pid = std::process::id();
         let info = manager.get_process_info(current_pid);
 
-        assert!(info.is_some(), "Deve conseguir obter informações do processo atual");
+        assert!(info.is_some());
         let proc = info.unwrap();
         assert_eq!(proc.pid, current_pid);
-        println!("Processo atual detectado: {} (PID: {})", proc.name, proc.pid);
     }
 }

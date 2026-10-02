@@ -1,66 +1,59 @@
-//! Módulo de Interface de Linha de Comando (`src/cli.rs`)
-//!
-//! Fornece comandos diretos para automação em terminal, scripts e PowerShell
-//! sem a necessidade de abrir a interface interativa (TUI).
+//! Command-line interface parser and execution handlers.
 
 use clap::{Parser, Subcommand};
 use crate::process::ProcessManager;
 use crate::scanner::{scan_all_ports, scan_listening_ports};
 
-/// Guardião nativo de portas e processos de desenvolvimento no Windows
+/// Windows native developer port and process guardian.
 #[derive(Parser, Debug)]
 #[command(name = "portguard", version, about, long_about = None)]
 pub struct Cli {
-    /// Comando opcional. Se omitido, o PortGuard abre o Dashboard Interativo (TUI).
     #[command(subcommand)]
     pub command: Option<Commands>,
 
-    /// Número de porta direto para inspeção rápida (ex.: `portguard 3000`)
+    /// Direct port number to inspect (e.g. `portguard 3000`)
     pub direct_port: Option<u16>,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Lista portas ativas em formato de texto no terminal
+    /// List active ports
     List {
-        /// Exibe todas as portas (inclusive ESTABLISHED/TIME_WAIT), e não apenas LISTENING
+        /// Display all ports instead of only listening ports
         #[arg(short, long)]
         all: bool,
     },
-    /// Inspeciona os detalhes de uma porta específica (ex.: `portguard inspect 3000`)
+    /// Inspect details of a specific port
     Inspect {
-        /// Número da porta a ser inspecionada
+        /// Port number to inspect
         port: u16,
     },
-    /// Encerra o processo que está ocupando uma porta (ex.: `portguard kill 3000`)
+    /// Terminate the process occupying a port
     Kill {
-        /// Número da porta a ser liberada
+        /// Port number to free
         port: u16,
-        /// Força o encerramento sem pedir confirmação
+        /// Force termination without prompt
         #[arg(short, long)]
         force: bool,
     },
 }
 
-/// Executa os comandos do modo CLI direto
+/// Executes non-interactive CLI commands.
 pub fn run_cli_command(cli: Cli) -> Result<(), String> {
     let mut proc_manager = ProcessManager::new();
 
-    // Caso 1: Usuário passou apenas o número da porta diretamente: `portguard 3000`
     if let Some(port) = cli.direct_port {
         return inspect_port(port, &mut proc_manager);
     }
 
-    // Caso 2: Subcomando explícito
     match cli.command {
         Some(Commands::List { all }) => list_ports(all, &mut proc_manager),
         Some(Commands::Inspect { port }) => inspect_port(port, &mut proc_manager),
         Some(Commands::Kill { port, force }) => kill_port_process(port, force, &mut proc_manager),
-        None => Err("Nenhum comando CLI fornecido.".to_string()),
+        None => Err("No CLI command provided.".to_string()),
     }
 }
 
-/// Lista portas no terminal
 fn list_ports(show_all: bool, proc_manager: &mut ProcessManager) -> Result<(), String> {
     let mut ports = if show_all {
         scan_all_ports()?
@@ -71,13 +64,13 @@ fn list_ports(show_all: bool, proc_manager: &mut ProcessManager) -> Result<(), S
     proc_manager.enrich_ports(&mut ports);
 
     if ports.is_empty() {
-        println!("Nenhuma porta encontrada.");
+        println!("No active ports found.");
         return Ok(());
     }
 
     println!(
         "{:<6} {:<6} {:<8} {:<20} {:<10} {:<15} {}",
-        "PORT", "PROTO", "PID", "PROCESSO", "RAM", "TAG", "ESTADO"
+        "PORT", "PROTO", "PID", "PROCESS", "RAM", "TAG", "STATE"
     );
     println!("{}", "-".repeat(80));
 
@@ -97,7 +90,6 @@ fn list_ports(show_all: bool, proc_manager: &mut ProcessManager) -> Result<(), S
     Ok(())
 }
 
-/// Inspeciona uma porta específica
 fn inspect_port(port: u16, proc_manager: &mut ProcessManager) -> Result<(), String> {
     let mut ports = scan_all_ports()?;
     proc_manager.enrich_ports(&mut ports);
@@ -105,29 +97,29 @@ fn inspect_port(port: u16, proc_manager: &mut ProcessManager) -> Result<(), Stri
     let matching: Vec<_> = ports.into_iter().filter(|p| p.port == port).collect();
 
     if matching.is_empty() {
-        println!("Nenhum processo encontrado escutando ou conectado na porta {port}.");
+        println!("No process found on port {port}.");
         return Ok(());
     }
 
-    println!("\n=== Detalhes da Porta {port} ===");
+    println!("\n=== Port {port} ===");
     for p in matching {
-        println!("• Protocolo: {}", p.protocol);
-        println!("• Estado:    {}", p.state);
-        println!("• IP Local:  {}", p.local_ip);
-        println!("• PID:       {}", p.pid);
+        println!("• Protocol:    {}", p.protocol);
+        println!("• State:       {}", p.state);
+        println!("• Local IP:    {}", p.local_ip);
+        println!("• PID:         {}", p.pid);
 
         if let Some(tag) = p.dev_tag {
-            println!("• Tag Dev:   [{tag}]");
+            println!("• Dev Tag:     [{tag}]");
         }
 
         if let Some(proc) = &p.process {
-            println!("• Processo:  {}", proc.name);
-            println!("• Memória:   {}", proc.formatted_memory());
+            println!("• Process:     {}", proc.name);
+            println!("• Memory:      {}", proc.formatted_memory());
             if let Some(exe) = &proc.exe_path {
-                println!("• Caminho:   {}", exe);
+                println!("• Path:        {}", exe);
             }
             if !proc.cmd_args.is_empty() {
-                println!("• Comando:   {}", proc.cmd_args.join(" "));
+                println!("• Command:     {}", proc.cmd_args.join(" "));
             }
         }
         println!();
@@ -136,7 +128,6 @@ fn inspect_port(port: u16, proc_manager: &mut ProcessManager) -> Result<(), Stri
     Ok(())
 }
 
-/// Encerra o processo que ocupa a porta indicada
 fn kill_port_process(port: u16, force: bool, proc_manager: &mut ProcessManager) -> Result<(), String> {
     let mut ports = scan_all_ports()?;
     proc_manager.enrich_ports(&mut ports);
@@ -146,7 +137,7 @@ fn kill_port_process(port: u16, force: bool, proc_manager: &mut ProcessManager) 
     let entry = match target {
         Some(e) => e,
         None => {
-            return Err(format!("Nenhum processo encontrado utilizando a porta {port}."));
+            return Err(format!("No process found using port {port}."));
         }
     };
 
@@ -154,11 +145,11 @@ fn kill_port_process(port: u16, force: bool, proc_manager: &mut ProcessManager) 
         .process
         .as_ref()
         .map(|p| p.name.clone())
-        .unwrap_or_else(|| "desconhecido".to_string());
+        .unwrap_or_else(|| "unknown".to_string());
 
     if !force {
         println!(
-            "Tem certeza que deseja encerrar o processo '{}' (PID {}) na porta {}? [s/N]",
+            "Terminate process '{}' (PID {}) on port {}? [y/N]",
             proc_name, entry.pid, port
         );
         let mut input = String::new();
@@ -167,15 +158,15 @@ fn kill_port_process(port: u16, force: bool, proc_manager: &mut ProcessManager) 
             .map_err(|e| e.to_string())?;
 
         let input = input.trim().to_lowercase();
-        if input != "s" && input != "sim" && input != "y" && input != "yes" {
-            println!("Operação cancelada pelo usuário.");
+        if input != "y" && input != "yes" && input != "s" && input != "sim" {
+            println!("Operation cancelled.");
             return Ok(());
         }
     }
 
     ProcessManager::kill_process(entry.pid)?;
     println!(
-        "✔ Processo '{}' (PID {}) na porta {} foi encerrado com sucesso.",
+        "Process '{}' (PID {}) on port {} terminated.",
         proc_name, entry.pid, port
     );
 
