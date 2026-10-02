@@ -1,3 +1,5 @@
+pub mod model;
+
 fn main() {
-    println!("Hello, world!");
+    println!("PortGuard - Guardião de portas de desenvolvimento");
 }
